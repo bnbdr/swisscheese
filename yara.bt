@@ -1,0 +1,287 @@
+//------------------------------------------------
+//--- 010 Editor v8.0.1 Binary Template
+//
+//      File: yara.bt
+//   Authors: bnbdr
+//   Version: 1.0
+//   Purpose: Fun
+//------------------------------------------------
+
+
+
+
+#define MAX_THREADS 32
+#define RULE_GFLAGS_NULL 0x1000
+#define EXTERNAL_VARIABLE_TYPE_NULL 0
+#define NO_RELOC_MAGIC 0xFFFABADA
+#define RELOCATIONS_END_MARKER 0xFFFFFFFF
+
+
+typedef struct{
+  DWORD count;
+  DWORD padding;
+  QWORD head;
+  QWORD tail;
+}YR_MATCHES;
+
+typedef struct {
+  DWORD  g_flags;
+  DWORD  length;
+
+  QWORD identifier;
+  QWORD oString;
+  QWORD chained_to;
+  QWORD  rule;
+
+  DWORD chain_gap_min;
+  DWORD chain_gap_max;
+
+  QWORD fixed_offset;
+
+  YR_MATCHES matches[MAX_THREADS];
+  YR_MATCHES unconfirmed_matches[MAX_THREADS];
+
+  // Used only when PROFILING_ENABLED is defined
+  QWORD time_cost;
+} YR_STRING;
+
+typedef struct {
+       
+    DWORD  type;
+    DWORD padding1;
+    union {
+        QWORD i;
+        QWORD f;
+        QWORD s;
+    } value;
+    
+    QWORD identifier;
+    DWORD padding2[2];
+    
+} YR_EXTERNAL_VARIABLE;
+
+typedef struct 
+{
+  DWORD  t_flags[MAX_THREADS];     // Thread-specific flags
+  QWORD name;
+}YR_NAMESPACE;
+
+typedef struct {
+    DWORD g_flags;               // Global flags
+    DWORD t_flags[MAX_THREADS];  // Thread-specific flags
+    if (MAX_THREADS%2 == 0)
+    {
+        DWORD padding;
+    }
+    QWORD identifier;
+    QWORD tags;
+    QWORD metas;
+    QWORD strings;
+    QWORD ns;
+ 
+
+    // Used only when PROFILING_ENABLED is defined
+    QWORD time_cost;
+
+} YR_RULE;
+
+
+
+typedef struct
+{
+  QWORD rules_list_head;
+  QWORD externals_list_head;
+  QWORD code_start;
+  QWORD ac_match_table;
+  QWORD ac_transition_table;
+
+  DWORD ac_tables_size;
+  DWORD padding;
+
+} YARA_RULES_FILE_HEADER;
+
+
+
+typedef struct {
+    char magic[4];
+    DWORD size;
+    struct {
+        WORD max_threads;
+        WORD arena_ver;
+    }version;
+}YR_HDR;
+
+
+void disassemble(YARA_RULES_FILE_HEADER & fhdr){
+    
+    struct{
+
+    local BYTE shouldStop = 0;
+    while(shouldStop == 0){
+    switch(ReadUByte())
+    {   
+        default:
+            shouldStop = 1;
+            break;
+case 0x11: struct{BYTE op;QWORD operand[0];}OP_OBJ_VALUE; break;
+case 0x02: struct{BYTE op;QWORD operand[0];}OP_OR; break;
+    case 0x2d: struct{BYTE op;QWORD operand[1];}OP_JTRUE; break;
+case 0x0C: struct{BYTE op;QWORD operand[0];}OP_STR_TO_BOOL; break;
+ case 0x6b:
+        struct{BYTE op;} OP_INT_SUB;
+        break;
+case 0x6a:
+        struct{BYTE op;} OP_INT_ADD;
+        break;
+       case 0x06:
+        struct{BYTE op;} OP_BITWISE_OR;
+        break;  
+        case 0x05:
+        struct{BYTE op;} OP_BITWISE_AND;
+        break;  
+        case 0x09:
+        struct{
+            byte op;      
+        }OP_SHR; break;
+        case 0x08:
+        struct{
+            byte op;      
+        }OP_SHL; break;
+        
+        case 0x1c:
+            struct
+            {
+                BYTE op;
+                QWORD operands[2];
+            }OP_INIT;
+            break;
+        
+        case 0x0d:
+            struct
+            {
+                BYTE op;
+                QWORD operands[1];
+            }OP_PUSH;
+
+            break;
+        case 0x16:
+            struct
+            {
+                BYTE op;
+             }OP_FOUND;
+
+            break;
+        
+        case 0x1d:
+            struct
+            {
+                BYTE op;
+                QWORD operands[1];
+            }OP_INCR_M;
+            break;
+
+        case 0x1b:
+            struct {
+             BYTE opcode;
+             QWORD operand[1];
+}OP_PUSH_RULE; break;
+        case 0x2a:
+            struct {
+             BYTE opcode;
+             QWORD operand[1];
+}OP_IMPORT; break;
+    
+        case 0x22:
+            struct {
+            BYTE opcode;
+ QWORD operand[1];
+}OP_PUSH_M;
+            break;
+        case 0x21:
+            struct {
+            BYTE opcode;
+ QWORD operand[1];
+}OP_POP_M;break;
+        case 0x21:
+            struct {
+            BYTE opcode;
+            QWORD operand[1];
+            }OP_ADD_M;
+
+            break;
+        case 0xFE:
+            struct
+            {
+                BYTE opcode;
+             }OP_NOP;
+            break;
+        case 0xFF:
+            struct
+            {
+                BYTE opcode;
+             }OP_HALT;
+shouldStop =1;
+            break;
+    };
+    }
+}        disassembly; // 0xFFFABADA
+
+}
+
+// ------------------
+
+YR_HDR hdr;
+
+
+YARA_RULES_FILE_HEADER filehdr;
+FSeek(sizeof(hdr)+ filehdr.rules_list_head);
+
+    local long rullend = 0;
+while ( (ReadUInt() & RULE_GFLAGS_NULL  )!= RULE_GFLAGS_NULL)
+{  
+    YR_RULE rule;
+    rullend = FTell();
+    FSeek(sizeof(hdr)+ rule.ns);
+    YR_NAMESPACE ruleNamespace;
+
+    FSeek(sizeof(hdr)+ rule.identifier);
+    string ruleIdentifier;
+    FSeek(rullend);
+}
+
+YR_RULE nullrule;
+
+
+FSeek(sizeof(hdr)+ filehdr.externals_list_head);
+
+
+while ( ReadUInt() != EXTERNAL_VARIABLE_TYPE_NULL)
+{
+    YR_EXTERNAL_VARIABLE external;
+}
+
+
+YR_EXTERNAL_VARIABLE null_external;
+
+
+// ------------------------------------
+
+
+FSeek(sizeof(hdr)+ filehdr.code_start);
+disassemble(filehdr);
+
+FSeek(hdr.size +sizeof(hdr)); 
+while(ReadUInt() != RELOCATIONS_END_MARKER)
+{
+    DWORD relocationOffset;
+}
+
+DWORD endmarker<format=hex>;
+DWORD filehash<format=hex>;
+
+if (FTell() < FileSize()-8)
+{ 
+    BYTE unknown[FileSize()-8 - FTell()];
+}
+
+// Printf("%d: %d\n", FTell(), ReadUInt());
