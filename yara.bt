@@ -112,17 +112,20 @@ typedef struct {
 }YR_HDR;
 
 
-void disassemble(YARA_RULES_FILE_HEADER & fhdr){
+void disassemble(YARA_RULES_FILE_HEADER & fhdr, YR_HDR &hdr){
     
     struct{
 
     local BYTE shouldStop = 0;
-    while(shouldStop == 0){
+    while(!shouldStop){
     switch(ReadUByte())
     {   
         default:
             shouldStop = 1;
             break;
+case 0x12: struct{BYTE op;QWORD operand[1];}OP_OBJ_FIELD; break;
+case 0x64: struct{BYTE op;QWORD operand[0];}OP_INT_EQ; break;
+case 0x10: struct{BYTE op;QWORD operand[1];}OP_OBJ_LOAD; break;
 case 0x11: struct{BYTE op;QWORD operand[0];}OP_OBJ_VALUE; break;
 case 0x02: struct{BYTE op;QWORD operand[0];}OP_OR; break;
     case 0x2d: struct{BYTE op;QWORD operand[1];}OP_JTRUE; break;
@@ -133,8 +136,24 @@ case 0x0C: struct{BYTE op;QWORD operand[0];}OP_STR_TO_BOOL; break;
 case 0x6a:
         struct{BYTE op;} OP_INT_ADD;
         break;
+
+case 0x14:
+        struct{BYTE op;}OP_COUNT;
+        break;  
        case 0x06:
         struct{BYTE op;} OP_BITWISE_OR;
+        break;  
+       case 45:
+        struct{BYTE op; QWORD addr;} OP_JTRUE;
+        break;
+case 44:
+        struct{BYTE op; QWORD addr;} OP_JFALSE;
+        break;
+       case 14:
+        struct{BYTE op; QWORD operand[0];}OP_POP;
+        break;  
+ case 0x07:
+        struct{BYTE op;} OP_BITWISE_XOR;
         break;  
         case 0x05:
         struct{BYTE op;} OP_BITWISE_AND;
@@ -153,7 +172,7 @@ case 0x6a:
             {
                 BYTE op;
                 QWORD operands[2];
-            }OP_INIT;
+            }OP_INIT_RULE;
             break;
         
         case 0x0d:
@@ -173,6 +192,13 @@ case 0x6a:
             break;
         
         case 0x1d:
+            struct
+            {
+                BYTE op;
+                QWORD operands[1];
+            }OP_MATCH_RULE;
+            break;
+case 0x1e:
             struct
             {
                 BYTE op;
@@ -220,7 +246,7 @@ case 0x6a:
             {
                 BYTE opcode;
              }OP_HALT;
-shouldStop =1;
+//shouldStop =1;
             break;
     };
     }
@@ -268,7 +294,7 @@ YR_EXTERNAL_VARIABLE null_external;
 
 
 FSeek(sizeof(hdr)+ filehdr.code_start);
-disassemble(filehdr);
+disassemble(filehdr, hdr);
 
 FSeek(hdr.size +sizeof(hdr)); 
 while(ReadUInt() != RELOCATIONS_END_MARKER)

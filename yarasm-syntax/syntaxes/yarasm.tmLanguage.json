@@ -1,0 +1,68 @@
+{
+	"name": "yarasm",
+	"patterns": [
+		{
+			"include": "#keywords"
+		},
+		{
+			"include": "#date"
+		}
+	],
+	"repository": {
+		"keywords": {
+			"patterns": [
+				{
+					"name":"string",
+					"match": "(\\+)"
+				},
+				{
+					"name": "keyword.yarasm",
+					"match": "(raw|reloc|ascii|wide)"
+				}, 
+				{
+					"name": "constant.regexp",
+					"match": "(OP_UINT8BE|OP_UINT8|OP_UINT32BE|OP_UINT32|OP_UINT16BE|OP_UINT16|OP_SWAPUNDEF|OP_STR_TO_BOOL|OP_STR_NEQ|OP_STR_LT|OP_STR_LE|OP_STR_GT|OP_STR_GE|OP_STR_EQ|OP_SHR|OP_SHL|OP_PUSH_RULE|OP_PUSH_M|OP_PUSH|OP_POP_M|OP_POP|OP_OR|OP_OFFSET|OP_OF|OP_OBJ_VALUE|OP_OBJ_LOAD|OP_OBJ_FIELD|OP_NOT|OP_NOP|OP_MOD|OP_MATCH_RULE|OP_MATCHES|OP_LOOKUP_DICT|OP_LENGTH|OP_JTRUE|OP_JNUNDEF|OP_JLE|OP_JFALSE|OP_INT_TO_DBL|OP_INT_SUB|OP_INT_NEQ|OP_INT_MUL|OP_INT_MINUS|OP_INT_LT|OP_INT_LE|OP_INT_GT|OP_INT_GE|OP_INT_EQ|OP_INT_DIV|OP_INT_ADD|OP_INT8BE|OP_INT8|OP_INT32BE|OP_INT32|OP_INT16BE|OP_INT16|OP_INIT_RULE|OP_INDEX_ARRAY|OP_INCR_M|OP_IMPORT|OP_HALT|OP_FOUND_IN|OP_FOUND_AT|OP_FOUND|OP_FILESIZE|OP_ERROR|OP_ENTRYPOINT|OP_DBL_SUB|OP_DBL_NEQ|OP_DBL_MUL|OP_DBL_MINUS|OP_DBL_LT|OP_DBL_LE|OP_DBL_GT|OP_DBL_GE|OP_DBL_EQ|OP_DBL_DIV|OP_DBL_ADD|OP_COUNT|OP_CONTAINS|OP_CLEAR_M|OP_CALL|OP_BITWISE_XOR|OP_BITWISE_OR|OP_BITWISE_NOT|OP_BITWISE_AND|OP_AND|OP_ADD_M)"
+				}
+			]
+		},
+		"date": {
+			"patterns": [{
+					"match": ";.*",
+					"captures": {
+						"0": {
+							"name": "comment.yarasm"
+						}
+					}
+				},
+				{
+					"match": "(0x[0-9a-fA-F]+)|([0-9a-fA-F]+h)",
+					"captures": {
+						"0": {
+							"name": "constant.numeric.hex"
+						}
+					}
+				},
+				{
+					"match": "([0-9]+)",
+					"captures": {
+						"0": {
+							"name": "constant.numeric"
+						},
+						"1":{
+						}
+
+					}
+				},
+				{
+					"match": "\".*\"",
+					"captures": {
+						"0": {
+							"name": "string.yarasm"
+						}
+					}
+				}
+			]
+		}
+	},
+	"scopeName": "source.yarasm"
+}

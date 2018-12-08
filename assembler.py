@@ -117,11 +117,11 @@ class YaraAssembler(object):
     END_OF_CODE = opcodes['OP_HALT']
 
     @classmethod
-    def build(cls, source, preprocessor={}):
-        return cls._build(opcodes, source.splitlines(), preprocessor)
+    def build(cls, source, preprocessor={}, version=None):
+        return cls._build(opcodes, source.splitlines(), preprocessor, version)
 
     @classmethod
-    def _build(cls, opcodes, inf, preprocessor):
+    def _build(cls, opcodes, inf, preprocessor, version):
 
         comment = ';'
         lc = 0
@@ -144,6 +144,14 @@ class YaraAssembler(object):
                 1, 3, 5], 'unsupported line {} {}'.format(lc, lparts)
             opname = lparts[0]
             operands = []
+
+            assert opname.startswith(
+                'OP_'), 'not beginning with opcode {}: {}'.format(lc, lparts)
+            assert opname in opcodes, 'not in opcode table {}: {}'.format(
+                lc, lparts)
+
+            val, operand_count = opcodes[opname]
+
             for i in range(1, len(lparts), 2):
                 m = lparts[i].lower()
                 v = lparts[i+1]
@@ -159,16 +167,13 @@ class YaraAssembler(object):
                 else:
                     v = int(v, 0)
                     if m == 'reloc':
+                        if lparts[i+1][0] in ['+']: # support for jmps relative (in bytes)
+                            v+= reloc_addr + operand_count*8
                         relocs.append(reloc_addr)
                 operands.append(v)
 
-            assert opname.startswith(
-                'OP_'), 'not beginning with opcode {}: {}'.format(lc, lparts)
-            assert opname in opcodes, 'not in opcode table {}: {}'.format(
-                lc, lparts)
-
-            val, operand_count = opcodes[opname]
-            assert len(operands) == operand_count, 'bad operand count'
+            
+            assert len(operands) == operand_count, 'bad operand count @ {}:"{}"'.format(lc, l)
 
             form = '<B'
             if operand_count:

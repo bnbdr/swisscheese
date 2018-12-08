@@ -1,0 +1,26 @@
+{
+    "name": "yarasm",
+    "displayName": "YARAsm",
+    "description": "Syntax highlighting for YARA bytecode assembly",
+    "version": "0.0.1",
+    "publisher": "bnbdr",
+    "engines": {
+        "vscode": "^1.5.0"
+    },
+    "categories": [
+        "Languages"
+    ],
+    "contributes": {
+        "languages": [{
+            "id": "yarasm",
+            "aliases": ["yarasm", "yarasm"],
+            "extensions": [".yarasm", ".y"],
+            "configuration": "./language-configuration.json"
+        }],
+        "grammars": [{
+            "language": "yarasm",
+            "scopeName": "source.yarasm",
+            "path": "./syntaxes/yarasm.tmLanguage.json"
+        }]
+    }
+}

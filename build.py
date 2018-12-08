@@ -19,25 +19,24 @@ def build(version, asm_code, preprocessor_definitions=None):
 
 def cheese():
     return r"""
-    Swiss         
-         _-""-.
-      .-"      "-.
-     |""--..      '-.
-     |      ""--..   '-.
-     |.-. .-".    ""--..".
+    Swiss    C    
+         _-``-.  h
+      .-`      `-.  e
+     |``--..      '-.  e
+     |      ``--..   '-.  s
+     |.-. .-`.    ``--..`.   e
      |'./  -_'  .-.      |
      |      .-. '.-'   .-'
      '--..  '.'    .-  \-.
-          ""--..   '_'   :
-                ""--..   |
-    Cheese            ""-' 
-
+          ``--..   '_'   :
+                ``--..   |
+                      ``-' 
 """
 
 if __name__ == '__main__':
-    DEFAULT_ASM_FILE = 'swisscheese.yarasm'
-    DEFAULT_OUT_FILE = 'swisscheese.rule'
-    SUPPORTED_VERSIONS = [('3.7.1', 0x1020)]
+    DEFAULT_ASM_FILE = 'extracheese.yarasm'
+    DEFAULT_OUT_FILE = 'extracheese.rule'
+    SUPPORTED_VERSIONS = [('3.8.1',0x00130020), ('3.7.1', 0x00100020)]
 
     parser = argparse.ArgumentParser(description='')
     parser.add_argument('-y', '--yara-asm', type=argparse.FileType('r'), default=DEFAULT_ASM_FILE,
@@ -55,6 +54,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     args.target_version = [
         tup[1] for tup in SUPPORTED_VERSIONS if tup[0] == args.target_version][0]
+        
     output = build(args.target_version, args.yara_asm.read())
     args.output.write(output)
 

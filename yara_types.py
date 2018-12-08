@@ -171,11 +171,11 @@ class YaraRule(object):
         if len(body_bytes) < 2048:
             padding = '\xCC' * (2048-len(body_bytes))
             body_bytes += padding
-
+        body_bytes += '\xCC'*sizeof(DWORD) # padding for relocation check in 3.8.1; will only work on 32 bit
         # finalize
         hdr.magic = [ord(l) for l in 'YARA']
-        hdr.version.max_threads = self.target_version & 0xFF
-        hdr.version.arena_ver = (self.target_version & 0xFF00) >> 8
+        hdr.version.max_threads = self.target_version & 0xFFFF
+        hdr.version.arena_ver = (self.target_version & 0xFFFF0000) >> 16
         hdr.size = len(body_bytes)
 
         hdr_bytes = bytes(hdr)

